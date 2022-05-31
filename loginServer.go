@@ -11,4 +11,10 @@ func main() {
 
 	s := net.NewServer(host + ":" + port)
 	s.Start()
+	s.Start()
+	s.Start()
+	s.Start()
+	s.Start()
+	s.Start()
+	s.Start()
 }
