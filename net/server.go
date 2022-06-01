@@ -1,6 +1,9 @@
 package net
 
-import "net/http"
+import (
+	"github.com/gorilla/websocket"
+	"net/http"
+)
 
 type server struct {
 	addr   string
@@ -21,6 +24,15 @@ func (s *server) Start() {
 	}
 }
 
-func (s *server) wsHandler(w http.ResponseWriter, r *http.Request) {
+// http升级websocket协议的配置
+var wsUpgrader = websocket.Upgrader{
+	// 运行所有CORS跨域请求
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
 
+func (s *server) wsHandler(w http.ResponseWriter, r *http.Request) {
+	// http协议升级websocket协议
+	wsConn, err := wsUpgrader.Upgrade(w, r, nil)
 }
