@@ -2,6 +2,7 @@ package net
 
 import (
 	"github.com/gorilla/websocket"
+	"log"
 	"net/http"
 )
 
@@ -35,4 +36,9 @@ var wsUpgrader = websocket.Upgrader{
 func (s *server) wsHandler(w http.ResponseWriter, r *http.Request) {
 	// http协议升级websocket协议
 	wsConn, err := wsUpgrader.Upgrade(w, r, nil)
+
+	if err != nil {
+		log.Fatal("websocket connecting failed...", err)
+	}
+	log.Fatal("websocket connecting success...")
 }
