@@ -41,4 +41,6 @@ func (s *server) wsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal("websocket connecting failed...", err)
 	}
 	log.Fatal("websocket connecting success...")
+
+	wsConn.WriteMessage(websocket.BinaryMessage, []byte("hello ziwei"))
 }
