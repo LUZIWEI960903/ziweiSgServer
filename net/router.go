@@ -10,3 +10,7 @@ type group struct {
 type router struct {
 	group []*group
 }
+
+func (r router) Run(req *WsMsgReq, rsp *WsMsgRsp) {
+
+}

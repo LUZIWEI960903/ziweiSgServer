@@ -1,11 +1,14 @@
 package net
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/forgoer/openssl"
 	"github.com/gorilla/websocket"
 	"log"
 	"sync"
+	"ziweiSgServer/utils"
 )
 
 // websocket服务
@@ -90,7 +93,49 @@ func (w *wsServer) readMsgLoop() {
 			log.Println("readMsgLoop() error", err)
 			break
 		}
-		fmt.Printf("data: %v\n", data)
+		// 收到消息 解析消息 前端发送过来的消息 就是json格式
+		// 1. data 解压 unzip
+		data, err = utils.UnZip(data)
+		if err != nil {
+			log.Println("UnZip(data) error", err)
+			continue
+		}
+		// 2. 前端的消息的加密消息 进行解密
+		secretKey, err := w.GetProperty("secretKey")
+		if err == nil {
+			//有加密
+			key := secretKey.(string)
+			//客户端传过来的数据是加密的 需要解密
+			d, err := utils.AesCBCDecrypt(data, []byte(key), []byte(key), openssl.ZEROS_PADDING)
+			if err != nil {
+				log.Println("AesCBCDecrypt error:", err)
+				//出错后 发起握手
+				// w.Handshake()
+			} else {
+				data = d
+			}
+		}
+		// 3. data 转为 body
+		body := &ReqBody{}
+		err = json.Unmarshal(data, body)
+		if err != nil {
+			log.Println("json.Unmarshal(data, body) error:", err)
+		} else {
+			// 获取到前端传递的数据了，拿上这些数据，去具体的业务进行处理
+			req := &WsMsgReq{
+				Body: body,
+				Conn: w,
+			}
+			rsp := &WsMsgRsp{
+				Body: &RspBody{
+					Seq:  req.Body.Seq,
+					Name: body.Name,
+				},
+			}
+			w.router.Run(req, rsp)
+
+			w.outChan <- rsp
+		}
 	}
 	w.Close()
 }
