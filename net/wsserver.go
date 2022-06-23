@@ -109,7 +109,7 @@ func (w *wsServer) readMsgLoop() {
 			if err != nil {
 				log.Println("utils.AesCBCDecrypt error:", err)
 				//出错后 发起握手
-				// w.Handshake()
+				w.Handshake()
 			} else {
 				data = d
 			}
@@ -150,7 +150,7 @@ func (w *wsServer) writeMsgLoop() {
 
 func (w *wsServer) Write(msg *WsMsgRsp) {
 	// 发给客户端的数据转json
-	data, err := json.Marshal(msg)
+	data, err := json.Marshal(msg.Body)
 	if err != nil {
 		log.Println("json.Marshal(msg) error:", err)
 	}
@@ -161,7 +161,7 @@ func (w *wsServer) Write(msg *WsMsgRsp) {
 		//数据做加密
 		data, _ = utils.AesCBCEncrypt(data, []byte(key), []byte(key), openssl.ZEROS_PADDING)
 		//压缩
-		if data, err := utils.Zip(data); err != nil {
+		if data, err := utils.Zip(data); err == nil {
 			w.wsConn.WriteMessage(websocket.BinaryMessage, data)
 		}
 	}
@@ -169,4 +169,34 @@ func (w *wsServer) Write(msg *WsMsgRsp) {
 
 func (w *wsServer) Close() {
 	_ = w.wsConn.Close()
+}
+
+// 当游戏客户端 发送请求时 先会进行握手协议
+// 后端会发送对应的加密key给客户端
+// 客户端在发送数据时 会使用此key进行加密处理
+const HandshakeName = "handshake"
+
+func (w *wsServer) Handshake() {
+	secretKey := ""
+	key, err := w.GetProperty("secretKey")
+	if err == nil {
+		secretKey = key.(string)
+	} else {
+		secretKey = utils.RandSeq(16)
+	}
+
+	handshake := &Handshake{Key: secretKey}
+
+	body := &RspBody{Name: HandshakeName, Msg: handshake}
+	if data, err := json.Marshal(body); err == nil {
+		if secretKey != "" {
+			w.SetProperty("secretKey", secretKey)
+		} else {
+			w.RemoveProperty("secretKey")
+		}
+		if data, err = utils.Zip(data); err == nil {
+			w.wsConn.WriteMessage(websocket.BinaryMessage, data)
+		}
+	}
+
 }
