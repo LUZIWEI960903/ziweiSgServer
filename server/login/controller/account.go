@@ -1,7 +1,11 @@
 package controller
 
 import (
+	"github.com/mitchellh/mapstructure"
+	"log"
+	"ziweiSgServer/db"
 	"ziweiSgServer/net"
+	"ziweiSgServer/server/login/model"
 	"ziweiSgServer/server/login/proto"
 )
 
@@ -25,8 +29,24 @@ func (a *Account) login(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 		6. 客户端需要一个session，jwt
 		7. 客户端在发起需要用户登录的行为时，判断用户是否合法
 	*/
-	rsp.Body.Code = 0
+
+	loginReq := &proto.LoginReq{}
 	loginRsp := &proto.LoginRsp{}
+	mapstructure.Decode(req.Body.Msg, loginReq)
+
+	user := &model.User{}
+	ok, err := db.Engine.Table(user).Where("username=?", loginReq.Username).Get(user)
+	if err != nil {
+		log.Println("user Query error:", err)
+		return
+	}
+
+	if !ok {
+		return
+	}
+
+	rsp.Body.Code = 0
+
 	loginRsp.UId = 1
 	loginRsp.Username = "admin"
 	loginRsp.Session = "as"
