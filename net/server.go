@@ -8,13 +8,17 @@ import (
 
 type server struct {
 	addr   string
-	router *router
+	router *Router
 }
 
 func NewServer(addr string) *server {
 	return &server{
 		addr: addr,
 	}
+}
+
+func (s *server) Router(router *Router) {
+	s.router = router
 }
 
 func (s *server) Start() {
