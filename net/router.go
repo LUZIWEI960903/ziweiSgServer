@@ -30,7 +30,8 @@ func NewRouter() *Router {
 
 func (r *Router) Group(prefix string) *group {
 	g := &group{
-		prefix: prefix,
+		prefix:     prefix,
+		handlerMap: make(map[string]HandlerFunc),
 	}
 	r.group = append(r.group, g)
 	return g

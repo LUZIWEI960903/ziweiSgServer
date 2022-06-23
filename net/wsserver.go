@@ -3,7 +3,6 @@ package net
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/forgoer/openssl"
 	"github.com/gorilla/websocket"
 	"log"
@@ -108,7 +107,7 @@ func (w *wsServer) readMsgLoop() {
 			//客户端传过来的数据是加密的 需要解密
 			d, err := utils.AesCBCDecrypt(data, []byte(key), []byte(key), openssl.ZEROS_PADDING)
 			if err != nil {
-				log.Println("AesCBCDecrypt error:", err)
+				log.Println("utils.AesCBCDecrypt error:", err)
 				//出错后 发起握手
 				// w.Handshake()
 			} else {
@@ -144,7 +143,26 @@ func (w *wsServer) writeMsgLoop() {
 	for {
 		select {
 		case msg := <-w.outChan:
-			fmt.Printf("msg: %v\n", msg)
+			w.Write(msg)
+		}
+	}
+}
+
+func (w *wsServer) Write(msg *WsMsgRsp) {
+	// 发给客户端的数据转json
+	data, err := json.Marshal(msg)
+	if err != nil {
+		log.Println("json.Marshal(msg) error:", err)
+	}
+	secretKey, err := w.GetProperty("secretKey")
+	if err == nil {
+		//有加密
+		key := secretKey.(string)
+		//数据做加密
+		data, _ = utils.AesCBCEncrypt(data, []byte(key), []byte(key), openssl.ZEROS_PADDING)
+		//压缩
+		if data, err := utils.Zip(data); err != nil {
+			w.wsConn.WriteMessage(websocket.BinaryMessage, data)
 		}
 	}
 }
