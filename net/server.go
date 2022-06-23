@@ -38,9 +38,10 @@ func (s *server) wsHandler(w http.ResponseWriter, r *http.Request) {
 	wsConn, err := wsUpgrader.Upgrade(w, r, nil)
 
 	if err != nil {
-		log.Fatal("websocket connecting failed...", err)
+		log.Println("websocket connecting failed...", err)
 	}
-	log.Fatal("websocket connecting success...")
 
-	wsConn.WriteMessage(websocket.BinaryMessage, []byte("hello ziwei"))
+	wsServer := NewWsServer(wsConn)
+	wsServer.Router(s.router)
+	wsServer.Start()
 }
