@@ -3,10 +3,12 @@ package controller
 import (
 	"github.com/mitchellh/mapstructure"
 	"log"
+	"ziweiSgServer/constant"
 	"ziweiSgServer/db"
 	"ziweiSgServer/net"
 	"ziweiSgServer/server/login/model"
 	"ziweiSgServer/server/login/proto"
+	"ziweiSgServer/utils"
 )
 
 var DefaultAccount = &Account{}
@@ -42,14 +44,24 @@ func (a *Account) login(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 	}
 
 	if !ok {
+		// 没查出来
+		rsp.Body.Code = constant.UserNotExist
 		return
 	}
 
-	rsp.Body.Code = 0
+	pwd := utils.Password(loginReq.Password, user.Passcode)
+	if user.Passwd != pwd {
+		rsp.Body.Code = constant.PwdIncorrect
+		return
+	}
 
-	loginRsp.UId = 1
-	loginRsp.Username = "admin"
-	loginRsp.Session = "as"
+	tokenStr, _ := utils.Award(user.UId)
+
+	rsp.Body.Code = constant.OK
+
+	loginRsp.UId = user.UId
+	loginRsp.Username = user.Username
+	loginRsp.Session = tokenStr
 	loginRsp.Password = ""
 	rsp.Body.Msg = loginRsp
 }
