@@ -2,6 +2,11 @@ package model
 
 import "time"
 
+const (
+	Login = iota
+	Logout
+)
+
 type LoginHistory struct {
 	Id       int       `xorm:"id pk autoincr"`
 	UId      int       `xorm:"uid"`

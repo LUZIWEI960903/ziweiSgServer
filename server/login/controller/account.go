@@ -3,6 +3,7 @@ package controller
 import (
 	"github.com/mitchellh/mapstructure"
 	"log"
+	"time"
 	"ziweiSgServer/constant"
 	"ziweiSgServer/db"
 	"ziweiSgServer/net"
@@ -64,4 +65,38 @@ func (a *Account) login(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 	loginRsp.Session = tokenStr
 	loginRsp.Password = ""
 	rsp.Body.Msg = loginRsp
+
+	// 保存用户登录记录
+	loginHistory := &model.LoginHistory{
+		UId:      user.UId,
+		CTime:    time.Now(),
+		Ip:       loginReq.Ip,
+		State:    model.Login,
+		Hardware: loginReq.Hardware,
+	}
+	db.Engine.Table(loginHistory).Insert(loginHistory)
+
+	// 保存用户最后一次登录的信息
+	loginLast := &model.LoginLast{}
+	ok, _ = db.Engine.Table(loginLast).Where("uid=?", user.UId).Get(loginLast)
+	if ok {
+		// 有数据 更新
+		loginLast.IsLogout = 0
+		loginLast.Ip = loginReq.Ip
+		loginLast.LoginTime = time.Now()
+		loginLast.Session = tokenStr
+		loginLast.Hardware = loginReq.Hardware
+		db.Engine.Table(loginLast).Update(loginLast)
+	} else {
+		// 没数据 插入
+		loginLast.UId = user.UId
+		loginLast.LoginTime = time.Now()
+		loginLast.Ip = loginReq.Ip
+		loginLast.Session = tokenStr
+		loginLast.IsLogout = 0
+		loginLast.Hardware = loginReq.Hardware
+		db.Engine.Table(loginLast).Insert(loginLast)
+	}
+
+	// 缓存一下 此用户和当前websocket连接
 }
