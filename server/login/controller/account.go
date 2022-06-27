@@ -99,4 +99,5 @@ func (a *Account) login(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 	}
 
 	// 缓存一下 此用户和当前websocket连接
+	net.Mgr.UserLogin(req.Conn, user.UId, tokenStr)
 }
