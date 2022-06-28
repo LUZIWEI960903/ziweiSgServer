@@ -9,6 +9,7 @@ import (
 	"ziweiSgServer/net"
 	"ziweiSgServer/server/login/model"
 	"ziweiSgServer/server/login/proto"
+	"ziweiSgServer/server/models"
 	"ziweiSgServer/utils"
 )
 
@@ -37,7 +38,7 @@ func (a *Account) login(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 	loginRsp := &proto.LoginRsp{}
 	mapstructure.Decode(req.Body.Msg, loginReq)
 
-	user := &model.User{}
+	user := &models.User{}
 	ok, err := db.Engine.Table(user).Where("username=?", loginReq.Username).Get(user)
 	if err != nil {
 		log.Println("user Query error:", err)
