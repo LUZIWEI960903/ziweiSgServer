@@ -1,6 +1,9 @@
 package net
 
-import "strings"
+import (
+	"log"
+	"strings"
+)
 
 type HandlerFunc func(req *WsMsgReq, rsp *WsMsgRsp)
 
@@ -17,6 +20,19 @@ func (g *group) exec(name string, req *WsMsgReq, rsp *WsMsgRsp) {
 	h := g.handlerMap[name]
 	if h != nil {
 		h(req, rsp)
+	} else {
+
+		/*
+			执行Group * 和 AddRouter * 后， prefix = *， name = * ，* 组 下有个 handlerMap[*]
+			prefix.name -> *.*
+
+		*/
+		h = g.handlerMap["*"]
+		if h != nil {
+			h(req, rsp)
+		} else {
+			log.Println("路由未定义")
+		}
 	}
 }
 
@@ -50,7 +66,10 @@ func (r *Router) Run(req *WsMsgReq, rsp *WsMsgRsp) {
 	for _, g := range r.group {
 		if g.prefix == prefix {
 			g.exec(name, req, rsp)
-			break
+
+		} else if g.prefix == "*" {
+			g.exec(name, req, rsp)
+
 		}
 	}
 }
