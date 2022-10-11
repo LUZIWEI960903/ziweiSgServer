@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 	"ziweiSgServer/config"
@@ -27,17 +26,17 @@ func (h *Handler) Router(r *net.Router) {
 }
 
 func (h *Handler) all(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
-	fmt.Println("网关的处理器")
+	//fmt.Println("网关的处理器")
 	// account 转发
-	name := req.Body.Name
+	name := req.Body.Name // name = "account.login"
 	proxyStr := ""
-	if IsAccount(name) {
+	if isAccount(name) {
 		proxyStr = h.loginProxy
 	}
 	proxy := net.NewProxyClient(proxyStr)
 	proxy.Connect()
 }
 
-func IsAccount(name string) bool {
+func isAccount(name string) bool {
 	return strings.HasPrefix(name, "account.")
 }

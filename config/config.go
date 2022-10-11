@@ -19,15 +19,18 @@ func init() {
 	}
 	configPath := currentDir + configFile
 
+	l := len(os.Args)
+	if l > 1 {
+		dir := os.Args[1]
+		if dir != "" {
+			configPath = dir + configFile
+		}
+	}
+
 	if !fileExist(configPath) {
 		panic(errors.New("`conf.ini` is not exist!!"))
 	}
 
-	l := len(os.Args)
-	if l > 1 {
-		dir := os.Args[1]
-		configPath = dir + configFile
-	}
 	File, err = goconfig.LoadConfigFile(configPath)
 	if err != nil {
 		log.Fatalf("Loading `conf.ini` file error:", err)

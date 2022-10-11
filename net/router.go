@@ -23,6 +23,7 @@ func (g *group) exec(name string, req *WsMsgReq, rsp *WsMsgRsp) {
 	} else {
 
 		/*
+			ws://127.0.0.1:8004 为网关服务器，该服务的路由只有 *.*，所以 account.login 请求该服务器的时候会找不到login对应的handleFunc，因此 h == nil
 			执行Group * 和 AddRouter * 后， prefix = *， name = * ，* 组 下有个 handlerMap[*]
 			prefix.name -> *.*
 

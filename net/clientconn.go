@@ -43,7 +43,7 @@ func (c *ClientConn) wsReadLoop() {
 	for {
 		_, data, err := c.wSConn.ReadMessage()
 		fmt.Println(data, err)
-		//收到我收消息了
+		//收到握手消息了
 		c.handshake = true
 		c.handshakeChan <- c.handshake
 	}

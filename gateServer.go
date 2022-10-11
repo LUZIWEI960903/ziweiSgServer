@@ -9,7 +9,7 @@ import (
 /*
 	1. 登录功能  account.login  需要通过网关 转发 登录服务器
 	2. 网关 如何和 登录服务器 交互； 登录服务器作为websocket的服务端；网关作为websocket的客户端
-	3. 网关又合游戏客户端交互；游戏客户端作为websocket的客户端；网关作为websocket的服务端
+	3. 网关又和游戏客户端交互；游戏客户端作为websocket的客户端；网关作为websocket的服务端
 	4. websocket的服务端 已经实现了
 	5. websocket的客户端 需要实现
 	6. 网关：代理服务器（代理地址 代理的连接通道） 客户端连接（websocket连接）
