@@ -2,16 +2,55 @@ package net
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
+	"errors"
+	"github.com/forgoer/openssl"
 	"github.com/gorilla/websocket"
+	"github.com/mitchellh/mapstructure"
 	"log"
+	"sync"
 	"time"
+	"ziweiSgServer/utils"
 )
 
+type syncCtx struct {
+	//Goroutine 的上下文，包含 Goroutine 的运行状态、环境、现场等信息
+	ctx     context.Context
+	cancel  context.CancelFunc
+	outChan chan *RspBody
+}
+
+func NewSyncCtx() *syncCtx {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	return &syncCtx{
+		ctx:     ctx,
+		cancel:  cancel,
+		outChan: make(chan *RspBody),
+	}
+}
+
+func (s *syncCtx) wait() *RspBody {
+	select {
+	case msg := <-s.outChan:
+		return msg
+	case <-s.ctx.Done():
+		log.Println("代理服务响应消息超时")
+		return nil
+	}
+}
+
 type ClientConn struct {
-	wSConn        *websocket.Conn
+	wsConn        *websocket.Conn
+	isClosed      bool
+	property      map[string]interface{}
+	propertyLock  sync.RWMutex
+	Seq           int64
 	handshake     bool
 	handshakeChan chan bool
+	onPush        func(conn *ClientConn, body *RspBody)
+	onClose       func(conn *ClientConn)
+	syncCtxMap    map[int64]*syncCtx
+	syncCtxLock   sync.RWMutex
 }
 
 func (c *ClientConn) Start() bool {
@@ -40,18 +79,144 @@ func (c *ClientConn) waitHandshake() bool {
 }
 
 func (c *ClientConn) wsReadLoop() {
+
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println("捕捉到异常，", err)
+			c.Close()
+		}
+	}()
+
 	for {
-		_, data, err := c.wSConn.ReadMessage()
-		fmt.Println(data, err)
-		//收到握手消息了
-		c.handshake = true
-		c.handshakeChan <- c.handshake
+		_, data, err := c.wsConn.ReadMessage()
+		if err != nil {
+			log.Println("readMsgLoop() error", err)
+			break
+		}
+
+		data, err = utils.UnZip(data)
+		if err != nil {
+			log.Println("UnZip(data) error", err)
+			continue
+		}
+
+		secretKey, err := c.GetProperty("secretKey")
+		if err == nil {
+			//有加密
+			key := secretKey.(string)
+			//客户端传过来的数据是加密的 需要解密
+			d, err := utils.AesCBCDecrypt(data, []byte(key), []byte(key), openssl.ZEROS_PADDING)
+			if err != nil {
+				log.Println("utils.AesCBCDecrypt error:", err)
+			} else {
+				data = d
+			}
+		}
+		// 3. data 转为 body
+		body := &RspBody{}
+		err = json.Unmarshal(data, body)
+		if err != nil {
+			log.Println("json.Unmarshal(data, body) error:", err)
+		} else {
+			// 判断 握手，心跳，请求信息（account.login）
+			if body.Seq == 0 {
+				if body.Name == HandshakeName {
+					// 获取密钥
+					hs := &Handshake{}
+					mapstructure.Decode(body.Msg, hs)
+					if hs.Key != "" {
+						c.SetProperty("secretKey", hs.Key)
+					} else {
+						c.RemoveProperty("secretKey")
+					}
+					c.handshake = true
+					c.handshakeChan <- true
+				} else {
+					if c.onPush != nil {
+						c.onPush(c, body)
+					}
+				}
+			} else {
+				c.syncCtxLock.RLock()
+				ctx, ok := c.syncCtxMap[body.Seq]
+				c.syncCtxLock.RUnlock()
+				if ok {
+					ctx.outChan <- body
+				} else {
+					log.Printf("seq未发现： %d, %s \r\n", body.Seq, body.Name)
+				}
+			}
+
+		}
+
 	}
+
+	c.Close()
+}
+
+func (c *ClientConn) Close() {
+	_ = c.wsConn.Close()
 }
 
 func NewClientConn(wsConn *websocket.Conn) *ClientConn {
 	return &ClientConn{
-		wSConn:        wsConn,
+		wsConn:        wsConn,
 		handshakeChan: make(chan bool),
+	}
+}
+
+func (c *ClientConn) SetProperty(key string, value interface{}) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+	c.property[key] = value
+}
+
+func (c *ClientConn) GetProperty(key string) (interface{}, error) {
+	c.propertyLock.RLock()
+	defer c.propertyLock.RUnlock()
+	value, ok := c.property[key]
+	if !ok {
+		return nil, errors.New("GetProperty error")
+	}
+	return value, nil
+}
+
+func (c *ClientConn) RemoveProperty(key string) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+	delete(c.property, key)
+}
+
+func (c *ClientConn) Addr() string {
+	return c.wsConn.RemoteAddr().String()
+}
+
+func (c *ClientConn) Push(name string, data interface{}) {
+	rsp := &WsMsgRsp{
+		Body: &RspBody{
+			Seq:  0,
+			Name: name,
+			Msg:  data,
+		},
+	}
+	c.write(rsp.Body)
+}
+
+func (c *ClientConn) write(body interface{}) {
+	// 发给客户端的数据转json
+	data, err := json.Marshal(body)
+	if err != nil {
+		log.Println("json.Marshal(msg) error:", err)
+	}
+	secretKey, err := c.GetProperty("secretKey")
+	if err == nil {
+		//有加密
+		key := secretKey.(string)
+		//数据做加密
+		data, _ = utils.AesCBCEncrypt(data, []byte(key), []byte(key), openssl.ZEROS_PADDING)
+		//压缩
+		if data, err := utils.Zip(data); err == nil {
+			c.wsConn.WriteMessage(websocket.BinaryMessage, data)
+		}
 	}
 }

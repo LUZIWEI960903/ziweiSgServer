@@ -143,14 +143,14 @@ func (w *wsServer) writeMsgLoop() {
 	for {
 		select {
 		case msg := <-w.outChan:
-			w.Write(msg)
+			w.Write(msg.Body)
 		}
 	}
 }
 
-func (w *wsServer) Write(msg *WsMsgRsp) {
+func (w *wsServer) Write(msg interface{}) {
 	// 发给客户端的数据转json
-	data, err := json.Marshal(msg.Body)
+	data, err := json.Marshal(msg)
 	if err != nil {
 		log.Println("json.Marshal(msg) error:", err)
 	}
