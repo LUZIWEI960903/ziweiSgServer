@@ -11,6 +11,8 @@ type EnterServerRsp struct {
 	Token   string  `json:"token"`
 }
 
+//数据库的字段 不一定是客户端需要的字段，做业务逻辑的时候，会将数据库的结果 映射到客户端需要的结果上
+//其中 可能会做一些转换
 type Role struct {
 	RId      int    `json:"rid"`
 	UId      int    `json:"uid"`

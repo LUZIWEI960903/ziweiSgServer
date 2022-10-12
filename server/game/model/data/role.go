@@ -1,6 +1,9 @@
 package data
 
-import "time"
+import (
+	"time"
+	"ziweiSgServer/server/game/model"
+)
 
 type Role struct {
 	RId        int       `xorm:"rid pk autoincr"`
@@ -17,4 +20,16 @@ type Role struct {
 
 func (r *Role) TableName() string {
 	return "role"
+}
+
+func (r *Role) ToModel() interface{} {
+	return model.Role{
+		RId:      r.RId,
+		UId:      r.UId,
+		NickName: r.NickName,
+		Sex:      r.Sex,
+		Balance:  r.Balance,
+		HeadId:   r.HeadId,
+		Profile:  r.Profile,
+	}
 }
