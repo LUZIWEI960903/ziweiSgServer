@@ -5,8 +5,10 @@ import (
 	"errors"
 	"github.com/forgoer/openssl"
 	"github.com/gorilla/websocket"
+	"github.com/mitchellh/mapstructure"
 	"log"
 	"sync"
+	"time"
 	"ziweiSgServer/utils"
 )
 
@@ -132,8 +134,17 @@ func (w *wsServer) readMsgLoop() {
 			// 获取到前端传递的数据了，拿上这些数据，去具体的业务进行处理
 			req := &WsMsgReq{Body: body, Conn: w}
 			rsp := &WsMsgRsp{Body: &RspBody{Seq: req.Body.Seq, Name: body.Name}}
-			w.router.Run(req, rsp)
-
+			if req.Body.Name == HeartbeatMsg {
+				// 回心跳的消息
+				h := &Heartbeat{}
+				mapstructure.Decode(req.Body.Msg, h)
+				h.STime = time.Now().UnixNano() / 1e6 // 纳秒转毫秒
+				rsp.Body.Msg = h
+			} else {
+				if w.router != nil {
+					w.router.Run(req, rsp)
+				}
+			}
 			w.outChan <- rsp
 		}
 	}
@@ -155,6 +166,7 @@ func (w *wsServer) Write(msg interface{}) {
 	if err != nil {
 		log.Println("json.Marshal(msg) error:", err)
 	}
+	log.Println("服务端写数据", string(data))
 	secretKey, err := w.GetProperty("secretKey")
 	if err == nil {
 		//有加密
