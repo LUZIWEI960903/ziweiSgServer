@@ -1,9 +1,11 @@
 package controller
 
 import (
+	"log"
 	"strings"
 	"sync"
 	"ziweiSgServer/config"
+	"ziweiSgServer/constant"
 	"ziweiSgServer/net"
 )
 
@@ -33,8 +35,67 @@ func (h *Handler) all(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 	if isAccount(name) {
 		proxyStr = h.loginProxy
 	}
-	proxy := net.NewProxyClient(proxyStr)
-	proxy.Connect()
+	if proxyStr == "" {
+		rsp.Body.Code = constant.ProxyNotInConnect
+		return
+	}
+	//先去proxyMap中查询 是否有连接
+	h.proxyMutex.Lock()
+	_, ok := h.proxyMap[proxyStr]
+	if !ok {
+		h.proxyMap[proxyStr] = make(map[int64]*net.ProxyClient)
+	}
+	h.proxyMutex.Unlock()
+
+	// 获取客户端id
+	c, err := req.Conn.GetProperty("cid")
+	if err != nil {
+		log.Println("cid为获取到", err)
+		rsp.Body.Code = constant.InvalidParam
+		return
+	}
+	cid := c.(int64)
+	proxy, ok := h.proxyMap[proxyStr][cid]
+	if !ok {
+		//没有建立连接 并发起调用
+		proxy = net.NewProxyClient(proxyStr)
+		h.proxyMutex.Lock()
+		h.proxyMap[proxyStr][cid] = proxy
+		h.proxyMutex.Unlock()
+
+		err := proxy.Connect()
+		if err != nil {
+			h.proxyMutex.Lock()
+			delete(h.proxyMap[proxyStr], cid)
+			h.proxyMutex.Unlock()
+			rsp.Body.Code = constant.ProxyConnectError
+			return
+		}
+		proxy.SetProperty("cid", cid)
+		proxy.SetProperty("proxy", proxyStr)
+		proxy.SetProperty("gateConn", req.Conn)
+		proxy.SetOnPush(h.onPush)
+	}
+	rsp.Body.Seq = req.Body.Seq
+	rsp.Body.Name = req.Body.Name
+	r, err := proxy.Send(req.Body.Name, req.Body.Msg)
+	if err == nil {
+		rsp.Body.Code = r.Code
+		rsp.Body.Msg = r.Msg
+	} else {
+		rsp.Body.Code = constant.ProxyConnectError
+		return
+	}
+}
+
+func (h *Handler) onPush(conn *net.ClientConn, body *net.RspBody) {
+	gc, err := conn.GetProperty("gateConn")
+	if err != nil {
+		log.Println("onPush gateConn,", err)
+		return
+	}
+	gateConn := gc.(net.WSConn)
+	gateConn.Push(body.Name, body.Msg)
 }
 
 func isAccount(name string) bool {

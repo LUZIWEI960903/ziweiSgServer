@@ -18,15 +18,22 @@ type wsServer struct {
 	Seq          int64
 	property     map[string]interface{}
 	propertyLock sync.RWMutex
+	needSecret   bool
 }
 
-func NewWsServer(wsConn *websocket.Conn) *wsServer {
-	return &wsServer{
-		wsConn:   wsConn,
-		outChan:  make(chan *WsMsgRsp, 1000),
-		Seq:      0,
-		property: make(map[string]interface{}),
+var cid int64
+
+func NewWsServer(wsConn *websocket.Conn, needSecret bool) *wsServer {
+	s := &wsServer{
+		wsConn:     wsConn,
+		outChan:    make(chan *WsMsgRsp, 1000),
+		Seq:        0,
+		property:   make(map[string]interface{}),
+		needSecret: needSecret,
 	}
+	cid++
+	s.SetProperty("cid", cid)
+	return s
 }
 
 func (w *wsServer) Router(router *Router) {
@@ -100,37 +107,31 @@ func (w *wsServer) readMsgLoop() {
 			continue
 		}
 		// 2. 前端的消息的加密消息 进行解密
-		secretKey, err := w.GetProperty("secretKey")
-		if err == nil {
-			//有加密
-			key := secretKey.(string)
-			//客户端传过来的数据是加密的 需要解密
-			d, err := utils.AesCBCDecrypt(data, []byte(key), []byte(key), openssl.ZEROS_PADDING)
-			if err != nil {
-				log.Println("utils.AesCBCDecrypt error:", err)
-				//出错后 发起握手
-				w.Handshake()
-			} else {
-				data = d
+		if w.needSecret {
+			secretKey, err := w.GetProperty("secretKey")
+			if err == nil {
+				//有加密
+				key := secretKey.(string)
+				//客户端传过来的数据是加密的 需要解密
+				d, err := utils.AesCBCDecrypt(data, []byte(key), []byte(key), openssl.ZEROS_PADDING)
+				if err != nil {
+					log.Println("utils.AesCBCDecrypt error:", err)
+					//出错后 发起握手
+					w.Handshake()
+				} else {
+					data = d
+				}
 			}
 		}
 		// 3. data 转为 body
 		body := &ReqBody{}
 		err = json.Unmarshal(data, body)
 		if err != nil {
-			log.Println("json.Unmarshal(data, body) error:", err)
+			log.Println("服务端json.Unmarshal(data, body) error:", err)
 		} else {
 			// 获取到前端传递的数据了，拿上这些数据，去具体的业务进行处理
-			req := &WsMsgReq{
-				Body: body,
-				Conn: w,
-			}
-			rsp := &WsMsgRsp{
-				Body: &RspBody{
-					Seq:  req.Body.Seq,
-					Name: body.Name,
-				},
-			}
+			req := &WsMsgReq{Body: body, Conn: w}
+			rsp := &WsMsgRsp{Body: &RspBody{Seq: req.Body.Seq, Name: body.Name}}
 			w.router.Run(req, rsp)
 
 			w.outChan <- rsp

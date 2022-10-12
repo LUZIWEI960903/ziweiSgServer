@@ -10,6 +10,7 @@ import (
 	"log"
 	"sync"
 	"time"
+	"ziweiSgServer/constant"
 	"ziweiSgServer/utils"
 )
 
@@ -162,6 +163,10 @@ func NewClientConn(wsConn *websocket.Conn) *ClientConn {
 	return &ClientConn{
 		wsConn:        wsConn,
 		handshakeChan: make(chan bool),
+		Seq:           0,
+		isClosed:      false,
+		property:      make(map[string]interface{}),
+		syncCtxMap:    make(map[int64]*syncCtx),
 	}
 }
 
@@ -192,31 +197,74 @@ func (c *ClientConn) Addr() string {
 }
 
 func (c *ClientConn) Push(name string, data interface{}) {
-	rsp := &WsMsgRsp{
-		Body: &RspBody{
-			Seq:  0,
-			Name: name,
-			Msg:  data,
-		},
-	}
+	rsp := &WsMsgRsp{Body: &RspBody{Seq: 0, Name: name, Msg: data}}
 	c.write(rsp.Body)
 }
 
-func (c *ClientConn) write(body interface{}) {
+func (c *ClientConn) write(body interface{}) error {
 	// 发给客户端的数据转json
 	data, err := json.Marshal(body)
 	if err != nil {
 		log.Println("json.Marshal(msg) error:", err)
+		return err
 	}
-	secretKey, err := c.GetProperty("secretKey")
-	if err == nil {
-		//有加密
-		key := secretKey.(string)
-		//数据做加密
-		data, _ = utils.AesCBCEncrypt(data, []byte(key), []byte(key), openssl.ZEROS_PADDING)
-		//压缩
-		if data, err := utils.Zip(data); err == nil {
-			c.wsConn.WriteMessage(websocket.BinaryMessage, data)
+	//secretKey, err := c.GetProperty("secretKey")
+	//if err == nil {
+	//	//有加密
+	//	key := secretKey.(string)
+	//	//数据做加密
+	//	data, err = utils.AesCBCEncrypt(data, []byte(key), []byte(key), openssl.ZEROS_PADDING)
+	//	if err != nil {
+	//		log.Println("加密失败，", err)
+	//		return err
+	//	}
+	//}
+
+	//压缩
+	if data, err := utils.Zip(data); err == nil {
+		err = c.wsConn.WriteMessage(websocket.BinaryMessage, data)
+		if err != nil {
+			log.Println("写数据失败，", err)
+			return err
+		}
+	} else {
+		log.Println("压缩失败，", err)
+		return err
+	}
+	return nil
+}
+
+func (c *ClientConn) SetOnPush(hook func(conn *ClientConn, body *RspBody)) {
+	c.onPush = hook
+}
+
+func (c *ClientConn) Send(name string, msg interface{}) *RspBody {
+	// 把请求 发送给 代理服务器  登录服务器， 等待返回
+	c.syncCtxLock.Lock()
+	c.Seq += 1
+	seq := c.Seq
+	sc := NewSyncCtx()
+	c.syncCtxMap[seq] = sc
+	c.syncCtxLock.Unlock()
+
+	rsp := &RspBody{Name: name, Seq: seq, Code: constant.OK}
+
+	// 构建req
+	req := &ReqBody{Seq: seq, Name: name, Msg: msg}
+	err := c.write(req)
+	if err != nil {
+		sc.cancel()
+	} else {
+		r := sc.wait()
+		if r == nil {
+			rsp.Code = constant.ProxyConnectError
+		} else {
+			rsp = r
 		}
 	}
+
+	c.syncCtxLock.Lock()
+	delete(c.syncCtxMap, seq)
+	c.syncCtxLock.Unlock()
+	return rsp
 }

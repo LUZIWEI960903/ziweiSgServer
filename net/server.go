@@ -7,14 +7,19 @@ import (
 )
 
 type server struct {
-	addr   string
-	router *Router
+	addr       string
+	router     *Router
+	needSecret bool
 }
 
 func NewServer(addr string) *server {
 	return &server{
 		addr: addr,
 	}
+}
+
+func (s *server) NeedSecret(needSecret bool) {
+	s.needSecret = needSecret
 }
 
 func (s *server) Router(router *Router) {
@@ -45,7 +50,7 @@ func (s *server) wsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("websocket connecting failed...", err)
 	}
 
-	wsServer := NewWsServer(wsConn)
+	wsServer := NewWsServer(wsConn, s.needSecret)
 	wsServer.Router(s.router)
 	wsServer.Start()
 	wsServer.Handshake()
