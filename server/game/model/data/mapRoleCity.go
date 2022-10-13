@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// MapRoleCity 玩家城池
 type MapRoleCity struct {
 	mutex      sync.Mutex `xorm:"-"`
 	CityId     int        `xorm:"cityId pk autoincr"`

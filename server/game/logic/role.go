@@ -61,7 +61,10 @@ func (r *roleService) EnterServer(uid int, rspObj *model.EnterServerRsp, conn ne
 			return common.NewError(constant.DBError, "数据库错误")
 		}
 
-		// 初始化主城
+		// 初始化城池
+		if err := MapRoleCityService.InitCity(rid, role.NickName, conn); err != nil {
+			return common.NewError(constant.DBError, "数据库错误")
+		}
 
 	} else {
 		return common.NewError(constant.RoleNotExist, "角色不存在")
