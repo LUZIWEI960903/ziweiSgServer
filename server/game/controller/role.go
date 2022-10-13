@@ -2,14 +2,11 @@ package controller
 
 import (
 	"github.com/mitchellh/mapstructure"
-	"log"
-	"time"
 	"ziweiSgServer/constant"
-	"ziweiSgServer/db"
 	"ziweiSgServer/net"
-	"ziweiSgServer/server/game/gameConfig"
+	"ziweiSgServer/server/common"
+	"ziweiSgServer/server/game/logic"
 	"ziweiSgServer/server/game/model"
-	"ziweiSgServer/server/game/model/data"
 	"ziweiSgServer/utils"
 )
 
@@ -45,48 +42,12 @@ func (r *RoleController) enterServer(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 		return
 	}
 	uid := claims.Uid
-	role := &data.Role{}
-	ok, err := db.Engine.Table(role).Where("uid=?", uid).Get(role)
+	// 初始化相关的逻辑
+	err = logic.RoleService.EnterServer(uid, rspObj, req.Conn)
 	if err != nil {
-		log.Println("enterServer查询角色出错", err)
-		rsp.Body.Code = constant.DBError
+		rsp.Body.Code = err.(*common.MyError).Code()
 		return
 	}
-	if ok {
-		rsp.Body.Code = constant.OK
-		rsp.Body.Msg = rspObj
-
-		rid := role.RId
-		// 查询角色对应的 资源
-		roleRes := &data.RoleRes{}
-		ok, err := db.Engine.Table(roleRes).Where("rid=?", rid).Get(roleRes)
-		if err != nil {
-			log.Println("enterServer查询角色资源出错", err)
-			rsp.Body.Code = constant.DBError
-			return
-		}
-		if !ok {
-			roleRes.RId = rid
-			roleRes.Wood = gameConfig.Base.Role.Wood
-			roleRes.Iron = gameConfig.Base.Role.Iron
-			roleRes.Stone = gameConfig.Base.Role.Stone
-			roleRes.Grain = gameConfig.Base.Role.Grain
-			roleRes.Gold = gameConfig.Base.Role.Gold
-			roleRes.Decree = gameConfig.Base.Role.Decree
-			_, err := db.Engine.Table(roleRes).Insert(roleRes)
-			if err != nil {
-				log.Println("enterServer插入角色资源出错", err)
-				rsp.Body.Code = constant.DBError
-				return
-			}
-		}
-		rspObj.RoleRes = roleRes.ToModel().(model.RoleRes)
-		rspObj.Role = role.ToModel().(model.Role)
-		rspObj.Time = time.Now().UnixNano() / 1e6
-		token, _ := utils.Award(rid)
-		rspObj.Token = token
-	} else {
-		rsp.Body.Code = constant.RoleNotExist
-		return
-	}
+	rsp.Body.Code = constant.OK
+	rsp.Body.Msg = rspObj
 }
