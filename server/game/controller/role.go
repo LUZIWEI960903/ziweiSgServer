@@ -7,6 +7,7 @@ import (
 	"ziweiSgServer/server/common"
 	"ziweiSgServer/server/game/logic"
 	"ziweiSgServer/server/game/model"
+	"ziweiSgServer/server/game/model/data"
 	"ziweiSgServer/utils"
 )
 
@@ -54,5 +55,50 @@ func (r *RoleController) enterServer(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 }
 
 func (r *RoleController) myProperty(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
+	// 分别根据角色id 去查询 军队 资源 建筑 城池 武将
+	//reqObj := &model.MyRolePropertyReq{}
+	rspObj := &model.MyRolePropertyRsp{}
 
+	role, err := req.Conn.GetProperty("role")
+	if err != nil {
+		rsp.Body.Code = constant.SessionInvalid
+		return
+	}
+	rid := role.(*data.Role).RId
+
+	// 资源
+	rspObj.RoleRes, err = logic.RoleService.GetRoleRes(rid)
+	if err != nil {
+		rsp.Body.Code = err.(*common.MyError).Code()
+		return
+	}
+	// 城池
+	rspObj.Citys, err = logic.MapRoleCityService.GetRoleCitys(rid)
+	if err != nil {
+		rsp.Body.Code = err.(*common.MyError).Code()
+		return
+	}
+	// 建筑
+	rspObj.MRBuilds, err = logic.MapRoleBuildService.GetBuilds(rid)
+	if err != nil {
+		rsp.Body.Code = err.(*common.MyError).Code()
+		return
+	}
+	// 军队
+	rspObj.Armys, err = logic.ArmyService.GetArmys(rid)
+	if err != nil {
+		rsp.Body.Code = err.(*common.MyError).Code()
+		return
+	}
+	// 武将
+	rspObj.Generals, err = logic.GeneralService.GetGenerals(rid)
+	if err != nil {
+		rsp.Body.Code = err.(*common.MyError).Code()
+		return
+	}
+
+	rsp.Body.Seq = req.Body.Seq
+	rsp.Body.Name = req.Body.Name
+	rsp.Body.Code = constant.OK
+	rsp.Body.Msg = rspObj
 }

@@ -3,6 +3,7 @@ package data
 import (
 	"sync"
 	"time"
+	"ziweiSgServer/server/game/model"
 )
 
 // MapRoleCity 玩家城池
@@ -21,4 +22,22 @@ type MapRoleCity struct {
 
 func (m *MapRoleCity) TableName() string {
 	return "map_role_city"
+}
+
+func (m *MapRoleCity) ToModel() interface{} {
+	return model.MapRoleCity{
+		CityId:     m.CityId,
+		RId:        m.RId,
+		Name:       m.Name,
+		UnionId:    0,
+		UnionName:  "",
+		ParentId:   0,
+		X:          m.X,
+		Y:          m.Y,
+		IsMain:     m.IsMain == 1,
+		Level:      1,
+		CurDurable: m.CurDurable,
+		MaxDurable: 1000,
+		OccupyTime: m.OccupyTime.UnixNano() / 1e6,
+	}
 }

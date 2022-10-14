@@ -10,6 +10,7 @@ import (
 	"ziweiSgServer/server/common"
 	"ziweiSgServer/server/game/gameConfig"
 	"ziweiSgServer/server/game/global"
+	"ziweiSgServer/server/game/model"
 	"ziweiSgServer/server/game/model/data"
 )
 
@@ -48,4 +49,19 @@ func (m *mapRoleCityService) InitCity(rid int, roleNickName string, conn net.WSC
 		// TODO
 	}
 	return nil
+}
+
+func (m *mapRoleCityService) GetRoleCitys(rid int) ([]model.MapRoleCity, error) {
+	citys := make([]data.MapRoleCity, 0)
+	city := &data.MapRoleCity{}
+	err := db.Engine.Table(city).Where("rid=?", rid).Find(&citys)
+	modelCitys := make([]model.MapRoleCity, 0)
+	if err != nil {
+		log.Println("GetRoleCitys获取角色城池出错", err)
+		return modelCitys, common.NewError(constant.DBError, "数据库出错")
+	}
+	for _, v := range citys {
+		modelCitys = append(modelCitys, v.ToModel().(model.MapRoleCity))
+	}
+	return modelCitys, nil
 }
