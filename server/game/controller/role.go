@@ -18,6 +18,7 @@ type RoleController struct {
 func (r *RoleController) Router(router *net.Router) {
 	g := router.Group("role")
 	g.AddRouter("enterServer", r.enterServer)
+	g.AddRouter("myProperty", r.myProperty)
 }
 
 func (r *RoleController) enterServer(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
@@ -27,8 +28,6 @@ func (r *RoleController) enterServer(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 	// 根据角色id 查询角色拥有的资源 roleRes，如果有则返回，没有 初始化资源
 	reqObj := &model.EnterServerReq{}
 	rspObj := &model.EnterServerRsp{}
-	rsp.Body.Seq = req.Body.Seq
-	rsp.Body.Name = req.Body.Name
 
 	err := mapstructure.Decode(req.Body.Msg, reqObj)
 	if err != nil {
@@ -48,6 +47,12 @@ func (r *RoleController) enterServer(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 		rsp.Body.Code = err.(*common.MyError).Code()
 		return
 	}
+	rsp.Body.Seq = req.Body.Seq
+	rsp.Body.Name = req.Body.Name
 	rsp.Body.Code = constant.OK
 	rsp.Body.Msg = rspObj
+}
+
+func (r *RoleController) myProperty(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
+
 }
