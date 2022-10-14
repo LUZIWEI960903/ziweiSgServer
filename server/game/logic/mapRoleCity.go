@@ -30,25 +30,52 @@ func (m *mapRoleCityService) InitCity(rid int, roleNickName string, conn net.WSC
 		return nil
 	} else {
 		// 如果查不到，则初始化
-		mapRoleCity.X = rand.Intn(global.MapWidth)
-		mapRoleCity.Y = rand.Intn(global.MapHeight)
-		// 这个城池 能不能在这个坐标点创建 需要判断 五格之内 不能有玩家的城池
-		// TODO
-		mapRoleCity.RId = rid
-		mapRoleCity.Name = roleNickName
-		mapRoleCity.IsMain = 1
-		mapRoleCity.CurDurable = gameConfig.Base.City.Durable
-		mapRoleCity.CreatedAt = time.Now()
+		for {
+			mapRoleCity.X = rand.Intn(global.MapWidth)
+			mapRoleCity.Y = rand.Intn(global.MapHeight)
 
-		_, err := db.Engine.Table(mapRoleCity).Insert(mapRoleCity)
-		if err != nil {
-			log.Println("InitCity插入角色城池出错", err)
-			return common.NewError(constant.DBError, "数据库出错")
+			// 这个城池 能不能在这个坐标点创建 需要判断 系统城池五格之内 不能有玩家的城池
+			if IsCanBuild(mapRoleCity.X, mapRoleCity.Y) {
+				mapRoleCity.RId = rid
+				mapRoleCity.Name = roleNickName
+				mapRoleCity.IsMain = 1
+				mapRoleCity.CurDurable = gameConfig.Base.City.Durable
+				mapRoleCity.CreatedAt = time.Now()
+
+				_, err := db.Engine.Table(mapRoleCity).Insert(mapRoleCity)
+				if err != nil {
+					log.Println("InitCity插入角色城池出错", err)
+					return common.NewError(constant.DBError, "数据库出错")
+				}
+				// 初始化城池的设施
+				// TODO
+				break
+			}
 		}
-		// 初始化城池的设施
-		// TODO
 	}
 	return nil
+}
+
+func IsCanBuild(x int, y int) bool {
+	confs := gameConfig.MapRes.Confs
+	pIndex := global.ToPosition(x, y)
+	_, ok := confs[pIndex]
+	if !ok {
+		return false
+	}
+	sysBuild := gameConfig.MapRes.SysBuild
+	// 系统城池的5格内 不能创建玩家城池
+	for _, v := range sysBuild {
+		if v.Type == gameConfig.MapBuildSysCity {
+			if x <= v.X+5 &&
+				x >= v.X-5 &&
+				y <= v.Y+5 &&
+				y >= v.Y-5 {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (m *mapRoleCityService) GetRoleCitys(rid int) ([]model.MapRoleCity, error) {
