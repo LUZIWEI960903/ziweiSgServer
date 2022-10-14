@@ -12,8 +12,11 @@ var Router = net.NewRouter()
 func Init() {
 	// basic.json 加载基础配置
 	gameConfig.Base.Load()
-	// map_build.json 加载地图基础配置
+	// map_build.json 加载地图资源配置
 	gameConfig.MapBuild.Load()
+	// map.json 加载地图单元格配置
+	gameConfig.MapRes.Load()
+
 	db.TestDB()
 	initRouter()
 }
