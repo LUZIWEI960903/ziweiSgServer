@@ -80,8 +80,8 @@ type facilityConf struct {
 var FacilityConf = &facilityConf{}
 
 const (
-	facilityFile = "conf/game/facility/facility.json"
-	facilityPath = "conf/game/facility/"
+	facilityFile = "/conf/game/facility/facility.json"
+	facilityPath = "/conf/game/facility/"
 )
 
 func (f *facilityConf) Load() {
@@ -99,7 +99,7 @@ func (f *facilityConf) Load() {
 	}
 	data, err := ioutil.ReadFile(cf)
 	if err != nil {
-		log.Println("城池设施读取失败")
+		log.Println("城池设施读取失败", err)
 		panic(err)
 	}
 	err = json.Unmarshal(data, f)

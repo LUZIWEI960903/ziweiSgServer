@@ -48,7 +48,10 @@ func (m *mapRoleCityService) InitCity(rid int, roleNickName string, conn net.WSC
 					return common.NewError(constant.DBError, "数据库出错")
 				}
 				// 初始化城池的设施
-				// TODO
+				if err := CityFacilityService.TryCreate(mapRoleCity.CityId, rid); err != nil {
+					log.Println("InitCity插入城池设施出错", err)
+					return common.NewError(err.(*common.MyError).Code(), err.Error())
+				}
 				break
 			}
 		}
