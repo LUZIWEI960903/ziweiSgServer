@@ -1,11 +1,13 @@
 package logic
 
 import (
+	"encoding/json"
 	"log"
 	"ziweiSgServer/constant"
 	"ziweiSgServer/db"
 	"ziweiSgServer/net"
 	"ziweiSgServer/server/common"
+	"ziweiSgServer/server/game/model"
 	"ziweiSgServer/server/game/model/data"
 )
 
@@ -35,4 +37,23 @@ func (r *roleAttributeService) TryCreate(rid int, conn net.WSConn) error {
 		}
 	}
 	return nil
+}
+
+func (r *roleAttributeService) GetTagList(rid int) ([]model.PosTag, error) {
+	roleAttribute := &data.RoleAttribute{}
+	ok, err := db.Engine.Table(roleAttribute).Where("rid=?", rid).Get(roleAttribute)
+	posTagList := make([]model.PosTag, 0)
+	if err != nil {
+		log.Println("GetTagList查询标签列表出错", err)
+		return posTagList, common.NewError(constant.DBError, "数据库错误")
+	}
+	if ok {
+		if roleAttribute.PosTags != "" {
+			err = json.Unmarshal([]byte(roleAttribute.PosTags), &posTagList)
+			if err != nil {
+				return posTagList, common.NewError(constant.DBError, "数据库错误")
+			}
+		}
+	}
+	return posTagList, nil
 }

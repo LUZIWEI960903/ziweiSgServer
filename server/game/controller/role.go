@@ -20,6 +20,7 @@ func (r *RoleController) Router(router *net.Router) {
 	g := router.Group("role")
 	g.AddRouter("enterServer", r.enterServer)
 	g.AddRouter("myProperty", r.myProperty)
+	g.AddRouter("posTagList", r.posTagList)
 }
 
 func (r *RoleController) enterServer(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
@@ -97,6 +98,27 @@ func (r *RoleController) myProperty(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 		return
 	}
 
+	rsp.Body.Seq = req.Body.Seq
+	rsp.Body.Name = req.Body.Name
+	rsp.Body.Code = constant.OK
+	rsp.Body.Msg = rspObj
+}
+
+func (r *RoleController) posTagList(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
+	//reqObj := &model.PosTagListReq{}
+	rspObj := &model.PosTagListRsp{}
+
+	role, err := req.Conn.GetProperty("role")
+	if err != nil {
+		rsp.Body.Code = constant.SessionInvalid
+		return
+	}
+	rid := role.(*data.Role).RId
+	rspObj.PosTags, err = logic.RoleAttributeService.GetTagList(rid)
+	if err != nil {
+		rsp.Body.Code = err.(*common.MyError).Code()
+		return
+	}
 	rsp.Body.Seq = req.Body.Seq
 	rsp.Body.Name = req.Body.Name
 	rsp.Body.Code = constant.OK
