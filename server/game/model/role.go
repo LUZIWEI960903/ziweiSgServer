@@ -147,3 +147,10 @@ type PosTagListReq struct {
 type PosTagListRsp struct {
 	PosTags []PosTag `json:"pos_tags"`
 }
+
+type MyGeneralReq struct {
+}
+
+type MyGeneralRsp struct {
+	Generals []General `json:"generals"`
+}
