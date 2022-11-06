@@ -22,6 +22,8 @@ func Init() {
 	gameConfig.FacilityConf.Load()
 	// 加载武将配置信息
 	general.General.Load()
+	// 加载技能信息
+	gameConfig.Skills.Load()
 
 	initRouter()
 }
@@ -32,4 +34,5 @@ func initRouter() {
 	controller.GeneralController.Router(Router)
 	controller.ArmyController.Router(Router)
 	controller.WarController.Router(Router)
+	controller.SkillController.Router(Router)
 }
