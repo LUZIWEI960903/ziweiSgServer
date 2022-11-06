@@ -31,4 +31,5 @@ func initRouter() {
 	controller.NationMapController.Router(Router)
 	controller.GeneralController.Router(Router)
 	controller.ArmyController.Router(Router)
+	controller.WarController.Router(Router)
 }
