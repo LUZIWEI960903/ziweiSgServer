@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"sync"
+	"xorm.io/xorm"
 	"ziweiSgServer/constant"
 	"ziweiSgServer/db"
 	"ziweiSgServer/net"
@@ -21,7 +22,7 @@ type roleAttributeService struct {
 	attrs map[int]*data.RoleAttribute
 }
 
-func (r *roleAttributeService) TryCreate(rid int, conn net.WSConn) error {
+func (r *roleAttributeService) TryCreate(rid int, req *net.WsMsgReq) error {
 	roleAttribute := &data.RoleAttribute{}
 	ok, err := db.Engine.Table(roleAttribute).Where("rid=?", rid).Get(roleAttribute)
 	if err != nil {
@@ -30,8 +31,8 @@ func (r *roleAttributeService) TryCreate(rid int, conn net.WSConn) error {
 	}
 	if ok {
 		r.mutex.Lock()
+		defer r.mutex.Unlock()
 		r.attrs[rid] = roleAttribute
-		r.mutex.Unlock()
 		return nil
 	} else {
 		// 如果查不到，则初始化
@@ -39,14 +40,19 @@ func (r *roleAttributeService) TryCreate(rid int, conn net.WSConn) error {
 		roleAttribute.UnionId = 0
 		roleAttribute.ParentId = 0
 		roleAttribute.PosTags = ""
-		_, err := db.Engine.Table(roleAttribute).Insert(roleAttribute)
+		session := req.Context.Get("dbSession").(*xorm.Session)
+		if session != nil {
+			_, err = session.Table(roleAttribute).Insert(roleAttribute)
+		} else {
+			_, err = db.Engine.Table(roleAttribute).Insert(roleAttribute)
+		}
 		if err != nil {
 			log.Println("TryCreate插入角色属性出错", err)
 			return common.NewError(constant.DBError, "数据库出错")
 		}
 		r.mutex.Lock()
+		defer r.mutex.Unlock()
 		r.attrs[rid] = roleAttribute
-		r.mutex.Unlock()
 	}
 	return nil
 }

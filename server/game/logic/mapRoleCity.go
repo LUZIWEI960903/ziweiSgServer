@@ -4,6 +4,7 @@ import (
 	"log"
 	"math/rand"
 	"time"
+	"xorm.io/xorm"
 	"ziweiSgServer/constant"
 	"ziweiSgServer/db"
 	"ziweiSgServer/net"
@@ -19,7 +20,7 @@ var MapRoleCityService = &mapRoleCityService{}
 type mapRoleCityService struct {
 }
 
-func (m *mapRoleCityService) InitCity(rid int, roleNickName string, conn net.WSConn) error {
+func (m *mapRoleCityService) InitCity(rid int, roleNickName string, req *net.WsMsgReq) error {
 	mapRoleCity := &data.MapRoleCity{}
 	ok, err := db.Engine.Table(mapRoleCity).Where("rid=?", rid).Get(mapRoleCity)
 	if err != nil {
@@ -41,14 +42,18 @@ func (m *mapRoleCityService) InitCity(rid int, roleNickName string, conn net.WSC
 				mapRoleCity.IsMain = 1
 				mapRoleCity.CurDurable = gameConfig.Base.City.Durable
 				mapRoleCity.CreatedAt = time.Now()
-
-				_, err := db.Engine.Table(mapRoleCity).Insert(mapRoleCity)
+				session := req.Context.Get("dbSession").(*xorm.Session)
+				if session != nil {
+					_, err = session.Table(mapRoleCity).Insert(mapRoleCity)
+				} else {
+					_, err = db.Engine.Table(mapRoleCity).Insert(mapRoleCity)
+				}
 				if err != nil {
 					log.Println("InitCity插入角色城池出错", err)
 					return common.NewError(constant.DBError, "数据库出错")
 				}
 				// 初始化城池的设施
-				if err := CityFacilityService.TryCreate(mapRoleCity.CityId, rid); err != nil {
+				if err := CityFacilityService.TryCreate(mapRoleCity.CityId, rid, req); err != nil {
 					log.Println("InitCity插入城池设施出错", err)
 					return common.NewError(err.(*common.MyError).Code(), err.Error())
 				}

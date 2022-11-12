@@ -44,7 +44,7 @@ func (r *RoleController) enterServer(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 	}
 	uid := claims.Uid
 	// 初始化相关的逻辑
-	err = logic.RoleService.EnterServer(uid, rspObj, req.Conn)
+	err = logic.RoleService.EnterServer(uid, rspObj, req)
 	if err != nil {
 		rsp.Body.Code = err.(*common.MyError).Code()
 		return

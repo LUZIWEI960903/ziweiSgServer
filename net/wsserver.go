@@ -132,7 +132,10 @@ func (w *wsServer) readMsgLoop() {
 			log.Println("服务端json.Unmarshal(data, body) error:", err)
 		} else {
 			// 获取到前端传递的数据了，拿上这些数据，去具体的业务进行处理
-			req := &WsMsgReq{Body: body, Conn: w}
+			context := &WsContext{
+				property: make(map[string]interface{}),
+			}
+			req := &WsMsgReq{Body: body, Conn: w, Context: context}
 			rsp := &WsMsgRsp{Body: &RspBody{Seq: req.Body.Seq, Name: body.Name}}
 			if req.Body.Name == HeartbeatMsg {
 				// 回心跳的消息
@@ -142,6 +145,7 @@ func (w *wsServer) readMsgLoop() {
 				rsp.Body.Msg = h
 			} else {
 				if w.router != nil {
+					log.Println("路由执行", req)
 					w.router.Run(req, rsp)
 				}
 			}

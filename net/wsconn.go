@@ -1,5 +1,7 @@
 package net
 
+import "sync"
+
 type ReqBody struct {
 	Seq   int64       `json:"seq"`
 	Name  string      `json:"name"`
@@ -15,8 +17,29 @@ type RspBody struct {
 }
 
 type WsMsgReq struct {
-	Body *ReqBody
-	Conn WSConn
+	Body    *ReqBody
+	Conn    WSConn
+	Context *WsContext
+}
+
+type WsContext struct {
+	mutex    sync.RWMutex
+	property map[string]interface{}
+}
+
+func (ws *WsContext) Set(key string, value interface{}) {
+	ws.mutex.Lock()
+	defer ws.mutex.Unlock()
+	ws.property[key] = value
+}
+
+func (ws *WsContext) Get(key string) interface{} {
+	ws.mutex.RLock()
+	defer ws.mutex.RUnlock()
+	if v, ok := ws.property[key]; ok {
+		return v
+	}
+	return nil
 }
 
 type WsMsgRsp struct {
