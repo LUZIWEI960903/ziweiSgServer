@@ -4,6 +4,7 @@ import (
 	"ziweiSgServer/constant"
 	"ziweiSgServer/net"
 	"ziweiSgServer/server/game/gameConfig"
+	"ziweiSgServer/server/game/middleware"
 	"ziweiSgServer/server/game/model"
 )
 
@@ -14,6 +15,7 @@ type nationMapController struct {
 
 func (n *nationMapController) Router(r *net.Router) {
 	g := r.Group("nationMap")
+	g.Use(middleware.Log())
 	g.AddRouter("config", n.config)
 }
 

@@ -1,13 +1,15 @@
 package controller
 
 import (
-	"github.com/mitchellh/mapstructure"
 	"ziweiSgServer/constant"
 	"ziweiSgServer/net"
 	"ziweiSgServer/server/common"
 	"ziweiSgServer/server/game/logic"
+	"ziweiSgServer/server/game/middleware"
 	"ziweiSgServer/server/game/model"
 	"ziweiSgServer/server/game/model/data"
+
+	"github.com/mitchellh/mapstructure"
 )
 
 var ArmyController = &armyController{}
@@ -17,7 +19,8 @@ type armyController struct {
 
 func (a *armyController) Router(r *net.Router) {
 	g := r.Group("army")
-	g.AddRouter("myList", a.myList)
+	g.Use(middleware.Log())
+	g.AddRouter("myList", a.myList, middleware.CheckRole())
 }
 
 func (a *armyController) myList(req *net.WsMsgReq, rsp *net.WsMsgRsp) {

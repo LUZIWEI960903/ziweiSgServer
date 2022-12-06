@@ -5,6 +5,7 @@ import (
 	"ziweiSgServer/net"
 	"ziweiSgServer/server/common"
 	"ziweiSgServer/server/game/logic"
+	"ziweiSgServer/server/game/middleware"
 	"ziweiSgServer/server/game/model"
 	"ziweiSgServer/server/game/model/data"
 )
@@ -16,7 +17,8 @@ type warController struct {
 
 func (w *warController) Router(r *net.Router) {
 	g := r.Group("war")
-	g.AddRouter("report", w.report)
+	g.Use(middleware.Log())
+	g.AddRouter("report", w.report, middleware.CheckRole())
 }
 
 func (w *warController) report(req *net.WsMsgReq, rsp *net.WsMsgRsp) {

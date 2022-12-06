@@ -1,14 +1,16 @@
 package controller
 
 import (
-	"github.com/mitchellh/mapstructure"
 	"ziweiSgServer/constant"
 	"ziweiSgServer/net"
 	"ziweiSgServer/server/common"
 	"ziweiSgServer/server/game/logic"
+	"ziweiSgServer/server/game/middleware"
 	"ziweiSgServer/server/game/model"
 	"ziweiSgServer/server/game/model/data"
 	"ziweiSgServer/utils"
+
+	"github.com/mitchellh/mapstructure"
 )
 
 var DefaultRoleController = &RoleController{}
@@ -18,9 +20,10 @@ type RoleController struct {
 
 func (r *RoleController) Router(router *net.Router) {
 	g := router.Group("role")
+	g.Use(middleware.Log())
 	g.AddRouter("enterServer", r.enterServer)
-	g.AddRouter("myProperty", r.myProperty)
-	g.AddRouter("posTagList", r.posTagList)
+	g.AddRouter("myProperty", r.myProperty, middleware.CheckRole())
+	g.AddRouter("posTagList", r.posTagList, middleware.CheckRole())
 }
 
 func (r *RoleController) enterServer(req *net.WsMsgReq, rsp *net.WsMsgRsp) {

@@ -5,6 +5,7 @@ import (
 	"ziweiSgServer/net"
 	"ziweiSgServer/server/common"
 	"ziweiSgServer/server/game/logic"
+	"ziweiSgServer/server/game/middleware"
 	"ziweiSgServer/server/game/model"
 	"ziweiSgServer/server/game/model/data"
 )
@@ -16,7 +17,8 @@ type skillController struct {
 
 func (s *skillController) Router(r *net.Router) {
 	g := r.Group("skill")
-	g.AddRouter("list", s.list)
+	g.Use(middleware.Log())
+	g.AddRouter("list", s.list, middleware.CheckRole())
 }
 
 func (s *skillController) list(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
